@@ -1,0 +1,55 @@
+%%writefile AI-Roadmap-Generator/services/roadmap_service.py
+
+
+from groq import Groq
+
+from utils.config import (
+    GROQ_API_KEY,
+    MODEL
+)
+
+from utils.prompts import roadmap_prompt
+
+
+
+client = Groq(
+    api_key=GROQ_API_KEY
+)
+
+
+
+def generate_roadmap(
+    goal,
+    level,
+    skills,
+    duration,
+    daily_time,
+    style
+):
+
+    prompt = roadmap_prompt(
+        goal,
+        level,
+        skills,
+        duration,
+        daily_time,
+        style
+    )
+
+
+    response = client.chat.completions.create(
+
+        model=MODEL,
+
+        messages=[
+            {
+                "role":"user",
+                "content":prompt
+            }
+        ],
+
+        temperature=0.7
+    )
+
+
+    return response.choices[0].message.content
