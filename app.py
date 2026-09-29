@@ -1,10 +1,7 @@
 import streamlit as st
 from groq import Groq
-...
-
-
+from utils.pdf_generator import create_pdf
 import streamlit as st
-
 from services.roadmap_service import generate_roadmap
 
 
@@ -101,8 +98,11 @@ if st.button(
         st.markdown(result)
 
 
+        pdf_file = create_pdf(result)
+
         st.download_button(
-            "Download Roadmap",
-            result,
-            "roadmap.md"
+            "📥 Download Roadmap PDF",
+            pdf_file,
+            "Career_Roadmap.pdf",
+            "application/pdf"
         )
