@@ -1,4 +1,4 @@
-%%writefile AI-Roadmap-Generator/.gitignore
+
 
 .env
 __pycache__/
