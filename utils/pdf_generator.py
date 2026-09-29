@@ -1,90 +1,137 @@
-import markdown
-from weasyprint import HTML
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.pagesizes import letter
+from io import BytesIO
+import re
+import html
+
+
+def clean_text(text):
+
+    # Remove markdown
+    text = re.sub(r"#", "", text)
+    text = text.replace("**", "")
+    text = text.replace("---", "")
+
+    # Fix AI artifacts
+    replacements = {
+        "n": " ",
+        "fi": "-",
+        "»": "",
+        "–": "-",
+        "—": "-"
+    }
+
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+
+    # Remove multiple spaces
+    text = re.sub(
+        r"\s+",
+        " ",
+        text
+    )
+
+    return text.strip()
+
 
 
 def create_pdf(content):
 
-    html_content = markdown.markdown(
-        content,
-        extensions=[
-            "tables",
-            "fenced_code"
-        ]
+    buffer = BytesIO()
+
+    pdf = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=50,
+        leftMargin=50,
+        topMargin=50,
+        bottomMargin=50
     )
 
 
-    styled_html = f"""
-    <!DOCTYPE html>
-    <html>
-
-    <head>
-
-    <style>
-
-    body {{
-        font-family: Arial, Helvetica, sans-serif;
-        margin: 50px;
-        line-height: 1.6;
-        font-size: 14px;
-        color: #222;
-    }}
-
-    h1 {{
-        text-align: center;
-        font-size: 24px;
-        margin-bottom: 30px;
-    }}
-
-    h2 {{
-        font-size: 18px;
-        margin-top: 25px;
-    }}
-
-    h3 {{
-        font-size: 15px;
-        margin-top: 18px;
-    }}
-
-    ul {{
-        margin-left: 20px;
-    }}
-
-    li {{
-        margin-bottom: 6px;
-    }}
-
-    table {{
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 15px;
-    }}
-
-    th, td {{
-        border: 1px solid #999;
-        padding: 8px;
-        text-align: left;
-    }}
-
-    </style>
-
-    </head>
+    styles = getSampleStyleSheet()
 
 
-    <body>
-
-    <h1>AI Career Roadmap</h1>
-
-    {html_content}
-
-    </body>
-
-    </html>
-    """
+    title_style = ParagraphStyle(
+        "title",
+        parent=styles["Title"],
+        fontSize=20,
+        alignment=1
+    )
 
 
-    pdf = HTML(
-        string=styled_html
-    ).write_pdf()
+    heading_style = ParagraphStyle(
+        "heading",
+        parent=styles["Heading2"],
+        fontSize=14
+    )
 
 
-    return pdf
+    body_style = ParagraphStyle(
+        "body",
+        parent=styles["BodyText"],
+        fontSize=10,
+        leading=14
+    )
+
+
+    story=[]
+
+
+    story.append(
+        Paragraph(
+            "AI Career Roadmap",
+            title_style
+        )
+    )
+
+    story.append(
+        Spacer(1,20)
+    )
+
+
+    cleaned = clean_text(content)
+
+
+    for line in cleaned.split("\n"):
+
+        if not line.strip():
+            continue
+
+
+        safe = html.escape(line)
+
+
+        if len(line)<40 and line[0].isupper():
+
+            story.append(
+                Paragraph(
+                    safe,
+                    heading_style
+                )
+            )
+
+        else:
+
+            story.append(
+                Paragraph(
+                    safe,
+                    body_style
+                )
+            )
+
+
+        story.append(
+            Spacer(1,8)
+        )
+
+
+    pdf.build(story)
+
+
+    data = buffer.getvalue()
+
+    buffer.close()
+
+    return data
