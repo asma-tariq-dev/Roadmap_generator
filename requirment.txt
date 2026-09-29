@@ -1,6 +1,3 @@
-%%writefile AI-Roadmap-Generator/requirements.txt
-
 streamlit
 groq
 python-dotenv
-fpdf2
