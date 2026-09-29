@@ -1,6 +1,3 @@
-%%writefile AI-Roadmap-Generator/utils/prompts.py
-
-
 def roadmap_prompt(
     goal,
     level,
