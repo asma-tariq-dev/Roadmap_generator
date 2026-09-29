@@ -2,5 +2,3 @@ streamlit
 groq
 python-dotenv
 reportlab
-markdown
-weasyprint
