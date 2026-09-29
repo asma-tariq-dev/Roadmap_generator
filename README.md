@@ -1,4 +1,4 @@
-%%writefile AI-Roadmap-Generator/README.md
+
 
 # 🚀 AI Roadmap Generator
 
