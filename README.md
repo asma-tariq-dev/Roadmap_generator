@@ -1,5 +1,3 @@
-
-
 # 🚀 AI Roadmap Generator
 
 
