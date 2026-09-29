@@ -1,86 +1,245 @@
-from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    PageBreak
+)
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
 from io import BytesIO
-import textwrap
+import re
+import html
+
+
+def clean_markdown(text):
+
+    # Remove markdown headings
+    text = re.sub(
+        r"^#+\s*",
+        "",
+        text,
+        flags=re.MULTILINE
+    )
+
+    # Remove bold/italic markdown
+    text = text.replace("**", "")
+    text = text.replace("__", "")
+    text = text.replace("*", "")
+
+    # Remove markdown separators
+    text = re.sub(
+        r"^-{3,}$",
+        "",
+        text,
+        flags=re.MULTILINE
+    )
+
+    # Convert markdown bullets
+    text = text.replace("- ", "• ")
+
+    # Remove unwanted characters causing PDF issues
+    remove_chars = [
+        "🚀",
+        "🧠",
+        "📚",
+        "💻",
+        "🎯",
+        "🌱",
+        "✅",
+        "»"
+    ]
+
+    for char in remove_chars:
+        text = text.replace(char, "")
+
+
+    # Fix AI formatting issues
+    replacements = {
+        "fi": "-",
+        "nworld": "-world",
+        "nmonth": "-month",
+        "nmonths": "-months",
+        "nlevel": "-level",
+        "nready": "-ready",
+        "nhrs": " hrs",
+        "n": " "
+    }
+
+
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+
+
+    # Remove extra spaces
+    text = re.sub(
+        r"[ ]+",
+        " ",
+        text
+    )
+
+
+    return text.strip()
+
 
 
 def create_pdf(content):
 
     buffer = BytesIO()
 
-    pdf = canvas.Canvas(
+
+    pdf = SimpleDocTemplate(
         buffer,
-        pagesize=letter
-    )
-
-    width, height = letter
-
-
-    # Simple font
-    pdf.setFont(
-        "Helvetica",
-        11
+        pagesize=letter,
+        rightMargin=60,
+        leftMargin=60,
+        topMargin=60,
+        bottomMargin=60
     )
 
 
-    x = 50
-    y = height - 50
+    styles = getSampleStyleSheet()
+
+
+    title_style = ParagraphStyle(
+        "Title",
+        parent=styles["Title"],
+        fontName="Helvetica-Bold",
+        fontSize=20,
+        alignment=TA_CENTER,
+        spaceAfter=30
+    )
+
+
+    heading_style = ParagraphStyle(
+        "Heading",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=14,
+        spaceBefore=18,
+        spaceAfter=10
+    )
+
+
+    sub_heading_style = ParagraphStyle(
+        "SubHeading",
+        parent=styles["Heading3"],
+        fontName="Helvetica-Bold",
+        fontSize=12,
+        spaceBefore=12,
+        spaceAfter=8
+    )
+
+
+    body_style = ParagraphStyle(
+        "Body",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=10,
+        leading=15,
+        spaceAfter=8
+    )
+
+
+    story = []
 
 
     # Title
-    pdf.setFont(
-        "Helvetica-Bold",
-        16
-    )
-
-    pdf.drawString(
-        x,
-        y,
-        "AI Career Roadmap"
-    )
-
-    y -= 40
-
-
-    pdf.setFont(
-        "Helvetica",
-        11
+    story.append(
+        Paragraph(
+            "AI Career Roadmap",
+            title_style
+        )
     )
 
 
-    # Write roadmap exactly as text
-    for line in content.split("\n"):
+    story.append(
+        Spacer(1,20)
+    )
 
-        wrapped_lines = textwrap.wrap(
-            line,
-            width=90
+
+    cleaned = clean_markdown(content)
+
+
+    lines = cleaned.split("\n")
+
+
+    for line in lines:
+
+        line = line.strip()
+
+        if not line:
+            story.append(
+                Spacer(1,8)
+            )
+            continue
+
+
+        safe_line = html.escape(line)
+
+
+        # Detect main sections
+        if any(
+            section.lower() in line.lower()
+            for section in [
+                "Career Overview",
+                "Skills Required",
+                "Learning Roadmap",
+                "Career-Specific Projects",
+                "Recommended Resources",
+                "Job Preparation Strategy",
+                "Future Career Growth"
+            ]
+        ):
+
+            story.append(
+                Paragraph(
+                    safe_line,
+                    heading_style
+                )
+            )
+
+
+        # Detect sub sections
+        elif any(
+            word.lower() in line.lower()
+            for word in [
+                "Phase",
+                "Beginner Projects",
+                "Intermediate Projects",
+                "Advanced Projects",
+                "Technical Skills",
+                "Soft Skills",
+                "Tools",
+                "Practice",
+                "Learn"
+            ]
+        ):
+
+            story.append(
+                Paragraph(
+                    safe_line,
+                    sub_heading_style
+                )
+            )
+
+
+        else:
+
+            story.append(
+                Paragraph(
+                    safe_line,
+                    body_style
+                )
+            )
+
+
+        story.append(
+            Spacer(1,5)
         )
 
 
-        for wrapped in wrapped_lines:
-
-            if y < 50:
-                pdf.showPage()
-
-                pdf.setFont(
-                    "Helvetica",
-                    11
-                )
-
-                y = height - 50
-
-
-            pdf.drawString(
-                x,
-                y,
-                wrapped
-            )
-
-            y -= 16
-
-
-    pdf.save()
+    pdf.build(story)
 
 
     pdf_data = buffer.getvalue()
