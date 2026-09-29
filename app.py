@@ -1,4 +1,6 @@
-%%writefile AI-Roadmap-Generator/app.py
+import streamlit as st
+from groq import Groq
+...
 
 
 import streamlit as st
