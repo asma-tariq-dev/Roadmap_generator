@@ -7,35 +7,34 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
-from reportlab.pdfbase.pdfmetrics import stringWidth
 from io import BytesIO
 import re
+import html
 
 
 def clean_text(text):
     """
-    Clean AI markdown output for PDF
+    Clean AI generated markdown text
     """
 
-    # Remove markdown symbols
+    # Remove markdown bold/italic symbols
     text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    text = text.replace("*", "")
 
+    # Remove markdown headings
     text = text.replace("#", "")
-    text = text.replace("`", "")
 
-    # Replace markdown bullets
-    text = text.replace("- ", "• ")
-
-    # Remove unwanted characters
+    # Remove unwanted AI formatting characters
     replacements = {
+        "»": "",
+        "fi": " - ",
         "🚀": "",
         "🧠": "",
         "📚": "",
         "💻": "",
         "🎯": "",
         "🌱": "",
-        "✅": "",
-        "»": "",
+        "✅": "•",
         "–": "-",
         "—": "-"
     }
@@ -43,8 +42,22 @@ def clean_text(text):
     for old, new in replacements.items():
         text = text.replace(old, new)
 
-    # Remove extra spaces
-    text = re.sub(r"\s+", " ", text)
+
+    # Fix common broken words
+    fixes = {
+        "realnworld": "real-world",
+        "portfolionlevel": "portfolio-level",
+        "careerngrowth": "career growth",
+        "problemnsolving": "problem-solving",
+        "nworld": "-world",
+        "nontechnical": "non-technical",
+        "screennshare": "screen-share",
+        "onepage": "one-page"
+    }
+
+    for old, new in fixes.items():
+        text = text.replace(old, new)
+
 
     return text.strip()
 
@@ -54,13 +67,14 @@ def create_pdf(content):
 
     buffer = BytesIO()
 
+
     pdf = SimpleDocTemplate(
         buffer,
         pagesize=letter,
-        rightMargin=50,
-        leftMargin=50,
-        topMargin=50,
-        bottomMargin=50
+        rightMargin=55,
+        leftMargin=55,
+        topMargin=55,
+        bottomMargin=55
     )
 
 
@@ -73,7 +87,7 @@ def create_pdf(content):
         fontName="Helvetica-Bold",
         fontSize=18,
         alignment=TA_CENTER,
-        spaceAfter=20
+        spaceAfter=25
     )
 
 
@@ -81,9 +95,19 @@ def create_pdf(content):
         "HeadingStyle",
         parent=styles["Heading2"],
         fontName="Helvetica-Bold",
-        fontSize=13,
-        spaceBefore=15,
-        spaceAfter=8
+        fontSize=14,
+        spaceBefore=18,
+        spaceAfter=10
+    )
+
+
+    subheading_style = ParagraphStyle(
+        "SubHeadingStyle",
+        parent=styles["Heading3"],
+        fontName="Helvetica-Bold",
+        fontSize=12,
+        spaceBefore=12,
+        spaceAfter=6
     )
 
 
@@ -100,13 +124,14 @@ def create_pdf(content):
     story = []
 
 
-    # PDF title
+    # Title
     story.append(
         Paragraph(
             "AI Career Roadmap",
             title_style
         )
     )
+
 
     story.append(
         Spacer(1,20)
@@ -119,27 +144,34 @@ def create_pdf(content):
     lines = cleaned.split("\n")
 
 
+    main_sections = [
+        "Career Overview",
+        "Skills Required",
+        "Learning Roadmap",
+        "Career-Specific Projects",
+        "Recommended Resources",
+        "Job Preparation Strategy",
+        "Future Career Growth"
+    ]
+
+
     for line in lines:
 
         line = line.strip()
+
 
         if not line:
             continue
 
 
-        # Detect headings
-        if (
-            line.lower().startswith(
-                (
-                    "career overview",
-                    "skills required",
-                    "learning roadmap",
-                    "career-specific projects",
-                    "recommended resources",
-                    "job preparation strategy",
-                    "future career growth"
-                )
-            )
+        # Escape HTML characters
+        line = html.escape(line)
+
+
+        # Main headings
+        if any(
+            line.startswith(section)
+            for section in main_sections
         ):
 
             story.append(
@@ -150,7 +182,30 @@ def create_pdf(content):
             )
 
 
+        # Smaller headings
+        elif (
+            line.startswith("Phase")
+            or line.startswith("Beginner")
+            or line.startswith("Intermediate")
+            or line.startswith("Advanced")
+            or line.startswith("Technical Skills")
+            or line.startswith("Soft Skills")
+        ):
+
+            story.append(
+                Paragraph(
+                    line,
+                    subheading_style
+                )
+            )
+
+
         else:
+
+            # Convert bullet points
+            if line.startswith("•"):
+                line = "&bull; " + line[1:].strip()
+
 
             story.append(
                 Paragraph(
@@ -171,5 +226,6 @@ def create_pdf(content):
     pdf_data = buffer.getvalue()
 
     buffer.close()
+
 
     return pdf_data
