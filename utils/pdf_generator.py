@@ -1,7 +1,9 @@
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.enums import TA_CENTER
 from io import BytesIO
+import html
 
 
 def create_pdf(content):
@@ -15,37 +17,63 @@ def create_pdf(content):
 
     styles = getSampleStyleSheet()
 
+    styles["Title"].alignment = TA_CENTER
+
     story = []
 
-    # Title
-    title = Paragraph(
-        "🚀 AI Career Roadmap",
-        styles["Title"]
+
+    # PDF Title
+    story.append(
+        Paragraph(
+            "AI Career Roadmap",
+            styles["Title"]
+        )
     )
 
-    story.append(title)
-    story.append(Spacer(1, 20))
+    story.append(
+        Spacer(1, 20)
+    )
 
 
-    # Convert AI response into PDF paragraphs
+    # Clean AI response
+    content = html.escape(content)
+
+
     lines = content.split("\n")
+
 
     for line in lines:
 
         if line.strip():
 
-            paragraph = Paragraph(
-                line,
-                styles["BodyText"]
-            )
+            # Convert markdown headings
+            if line.startswith("#"):
+                line = line.replace("#", "").strip()
+
+                paragraph = Paragraph(
+                    f"<b>{line}</b>",
+                    styles["Heading3"]
+                )
+
+            else:
+                # Convert bullet points
+                line = line.replace("- ", "• ")
+
+                paragraph = Paragraph(
+                    line,
+                    styles["BodyText"]
+                )
+
 
             story.append(paragraph)
+
             story.append(
                 Spacer(1, 8)
             )
 
 
     pdf.build(story)
+
 
     pdf_data = buffer.getvalue()
 
